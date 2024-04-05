@@ -1,0 +1,173 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+    <style>
+        .message {
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .my-message {
+            background-color: #e0f2f1;
+            float: right;
+        }
+
+        .contact {
+            cursor: pointer;
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .group {
+            cursor: pointer;
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h2>Chat</h2>
+        <div>
+            <input type="text" id="recipientId" placeholder="Recipient ID" />
+            <input type="text" id="messageInput" placeholder="Enter message" />
+            <button onclick="sendPersonalMessage()">Send</button>
+        </div>
+        <hr />
+        <div>
+            <h3>Create or Join a Group</h3>
+            <input type="text" id="groupName" placeholder="Enter group name" />
+            <button onclick="createGroup()">Create Group</button>
+            <button onclick="joinGroup()">Join Group</button>
+            <button onclick="leaveGroup()">Leave Group</button>
+        </div>
+        <div>
+            <input type="text" id="groupMessageInput" placeholder="Enter group message" />
+            <button onclick="sendGroupMessage()">Send Group Message</button>
+        </div>
+    </div>
+    <div>
+        <div style="float: left; width: 30%;">
+            <h3>Contact List</h3>
+            <div id="contactList"></div>
+        </div>
+        <div style="float: left; width: 70%;">
+            <h3>Messages</h3>
+            <div id="messageList"></div>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+    <div>
+        <h3>Available Groups</h3>
+        <div id="groupList"></div>
+    </div>
+
+    <script>
+        var connection = new signalR.HubConnectionBuilder()
+            .withUrl("/Hubs/ChatHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        connection.start().catch(err => console.error(err.toString()));
+
+        // Function to send a personal message
+        function sendPersonalMessage() {
+            var recipientId = document.getElementById("recipientId").value;
+            var message = document.getElementById("messageInput").value;
+            connection.invoke("SendPersonalMessage", recipientId, message).catch(err => console.error(err.toString()));
+        }
+
+        // Function to send a group message
+        function sendGroupMessage() {
+            var groupName = document.getElementById("groupName").value;
+            var message = document.getElementById("groupMessageInput").value;
+            connection.invoke("SendGroupMessage", groupName, message).catch(err => console.error(err.toString()));
+        }
+
+        // Function to create a new group
+        function createGroup() {
+            var groupName = document.getElementById("groupName").value;
+            connection.invoke("CreateGroup", groupName).catch(err => console.error(err.toString()));
+        }
+
+        // Function to join a group
+        function joinGroup() {
+            var groupName = document.getElementById("groupName").value;
+            connection.invoke("JoinGroup", groupName).catch(err => console.error(err.toString()));
+        }
+
+        // Function to leave a group
+        function leaveGroup() {
+            var groupName = document.getElementById("groupName").value;
+            connection.invoke("LeaveGroup", groupName).catch(err => console.error(err.toString()));
+        }
+
+        // Function to update the contact list
+        function updateContactList(contacts) {
+            var contactList = document.getElementById("contactList");
+            contactList.innerHTML = ""; // Clear existing list
+            contacts.forEach(function (contact) {
+                var listItem = document.createElement("div");
+                listItem.className = "contact";
+                listItem.textContent = contact;
+                contactList.appendChild(listItem);
+            });
+        }
+
+        // Function to update the group list
+        function updateGroupList(groups) {
+            var groupList = document.getElementById("groupList");
+            groupList.innerHTML = ""; // Clear existing list
+            groups.forEach(function (group) {
+                var listItem = document.createElement("div");
+                listItem.className = "group";
+                listItem.textContent = group;
+                groupList.appendChild(listItem);
+            });
+        }
+
+        // Function to receive a message
+        connection.on("ReceiveMessage", function (senderId, message) {
+            // Display the received message in the UI
+            var messageList = document.getElementById("messageList");
+            var messageItem = document.createElement("div");
+            messageItem.innerText = "From " + senderId + ": " + message;
+            messageItem.classList.add("message");
+            if (senderId === "") {
+                messageItem.classList.add("my-message");
+            }
+            messageList.appendChild(messageItem);
+        });
+
+        // Function to receive a group message
+        connection.on("ReceiveGroupMessage", function (groupName, senderId, message) {
+            var messageList = document.getElementById("messageList");
+            var messageItem = document.createElement("div");
+            messageItem.innerText = "From group " + groupName + " (" + senderId + "): " + message;
+            messageItem.classList.add("message");
+            if (senderId === "") {
+                messageItem.classList.add("my-message");
+            }
+            messageList.appendChild(messageItem);
+        });
+
+        // Function to receive the updated contact list
+        connection.on("UpdateContactList", function (contacts) {
+            updateContactList(contacts);
+        });
+
+        // Function to receive the updated group list
+        connection.on("UpdateGroupList", function (groups) {
+            updateGroupList(groups);
+        });
+    </script>
+</body>
+</html>
